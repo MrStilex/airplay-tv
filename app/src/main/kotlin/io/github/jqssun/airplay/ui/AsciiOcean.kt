@@ -21,6 +21,7 @@ import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
+import kotlin.math.sign
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -37,9 +38,9 @@ private const val ROWS_ON_SCREEN = 46f
 
 private fun bodyHalf(u: Float): Float {
     if (u < 0f || u > 1f) return 0f
-    val nose = min(1f, u / 0.16f).pow(0.6f)
-    val taper = min(1f, (1f - u).pow(1.35f) * 1.15f + 0.05f)
-    return 0.1f * nose * taper
+    val nose = min(1f, u / 0.18f).pow(0.6f)
+    val taper = min(1f, (1f - u).pow(1.4f) * 1.15f + 0.04f)
+    return 0.11f * nose * taper
 }
 
 private fun angDiff(a: Float, b: Float): Float {
@@ -49,12 +50,20 @@ private fun angDiff(a: Float, b: Float): Float {
     return d
 }
 
+private const val MAX_TILT = 0.6f       // не круче ~35° к горизонту, чтобы акула оставалась в профиль
+
+private fun clampTilt(a: Float): Float {
+    val base = if (cos(a) >= 0f) 0f else PI.toFloat()
+    return base + angDiff(base, a).coerceIn(-MAX_TILT, MAX_TILT)
+}
+
 private class Shark(var x: Float, var y: Float, var th: Float, val len: Float, val sp: Float, val ph: Float) {
     var tx = x; var ty = y; var retarget = 0f
+    var dorsal = if (cos(th) >= 0f) -1f else 1f   // какая сторона тела — спина (всегда вверх по экрану)
     val trailX = ArrayList<Float>(); val trailY = ArrayList<Float>()
     val px = FloatArray(NS + 1); val py = FloatArray(NS + 1)
     init {
-        for (i in 0..60) { trailX += x - cos(th) * i * len / 60; trailY += y - sin(th) * i * len / 60 }
+        for (i in 0..80) { trailX += x - cos(th) * i * len / 60; trailY += y - sin(th) * i * len / 60 }
     }
 }
 
@@ -105,8 +114,8 @@ private class Ocean {
         grid = Array(rows) { CharArray(cols) }
         shade = Array(rows) { FloatArray(cols) }
         sharks.clear()
-        sharks += Shark(w * 0.3f, h * 0.35f, 0f, w * 0.30f, w * 0.045f, 0f)
-        sharks += Shark(w * 0.6f, h * 0.72f, PI.toFloat(), w * 0.20f, w * 0.038f, 2f)
+        sharks += Shark(w * 0.25f, h * 0.35f, 0f, w * 0.30f, w * 0.05f, 0f)
+        sharks += Shark(w * 0.55f, h * 0.72f, PI.toFloat(), w * 0.20f, w * 0.042f, 2f)
         fish.clear()
         repeat(24) { i ->
             val school = i / 8
@@ -120,29 +129,35 @@ private class Ocean {
         val boost = 0.7f + energy * 0.8f
         t += dt * boost
         if (w == 0f) return
-        val m = w * 0.18f; val mY = h * 0.2f
+        val m = w * 0.14f; val mY = h * 0.2f
         for (s in sharks) {
             s.retarget -= dt
-            if (s.retarget <= 0f || hypot(s.tx - s.x, s.ty - s.y) < w * 0.08f) {
-                s.tx = m + rnd.nextFloat() * (w - 2 * m)
+            if (s.retarget <= 0f || hypot(s.tx - s.x, s.ty - s.y) < w * 0.1f) {
+                // цели только в левых 3/4 экрана — справа обложка
+                s.tx = m + rnd.nextFloat() * (w * 0.75f - 2 * m)
                 s.ty = mY + rnd.nextFloat() * (h - 2 * mY)
-                s.retarget = 5f + rnd.nextFloat() * 5f
+                s.retarget = 6f + rnd.nextFloat() * 6f
             }
             var want = atan2(s.ty - s.y, s.tx - s.x)
-            val look = s.len * 0.5f
+            val look = s.len * 0.6f
             val lx = s.x + cos(s.th) * look; val ly = s.y + sin(s.th) * look
-            if (lx < m * 0.6f || lx > w - m * 0.6f || ly < mY * 0.6f || ly > h - mY * 0.6f) want = atan2(h / 2 - s.y, w / 2 - s.x)
-            // радиус поворота не меньше ~0.45 длины акулы — тело изгибается дугой, а не складывается
-            val maxTurn = s.sp / (s.len * 0.8f) * dt * boost
+            val right = cos(s.th) >= 0f
+            if (lx < m * 0.5f) want = 0f else if (lx > w - m * 0.5f) want = PI.toFloat()
+            if (ly < mY * 0.6f) want = if (right) 0.4f else PI.toFloat() - 0.4f
+            else if (ly > h - mY * 0.6f) want = if (right) -0.4f else PI.toFloat() + 0.4f
+            want = clampTilt(want)
+            val maxTurn = s.sp / (s.len * 0.7f) * dt * boost
             s.th += angDiff(s.th, want).coerceIn(-maxTurn, maxTurn)
             s.x += cos(s.th) * s.sp * dt * boost
             s.y += sin(s.th) * s.sp * dt * boost
+            val cx = cos(s.th)
+            if (cx > 0.35f) s.dorsal = -1f else if (cx < -0.35f) s.dorsal = 1f
             s.trailX.add(0, s.x); s.trailY.add(0, s.y)
             var acc = 0f
             var i = 1
             while (i < s.trailX.size) {
                 acc += hypot(s.trailX[i] - s.trailX[i - 1], s.trailY[i] - s.trailY[i - 1])
-                if (acc > s.len * 1.1f) {
+                if (acc > s.len * 1.2f) {
                     while (s.trailX.size > i + 1) { s.trailX.removeAt(s.trailX.size - 1); s.trailY.removeAt(s.trailY.size - 1) }
                     break
                 }
@@ -195,68 +210,62 @@ private class Ocean {
         val pad = s.len * 0.2f
         val c0 = max(0, ((minX - pad) / cellW).toInt()); val c1 = min(cols - 1, ((maxX + pad) / cellW).toInt())
         val r0 = max(0, ((minY - pad) / cellH).toInt()); val r1 = min(rows - 1, ((maxY + pad) / cellH).toInt())
+        // хвост: свой базис по усреднённому направлению последней четверти тела, лопасти фиксированного размера
+        val ex = s.px[NS]; val ey = s.py[NS]
+        var ax0 = ex - s.px[NS - 7]; var ay0 = ey - s.py[NS - 7]
+        val al = hypot(ax0, ay0).takeIf { it > 0f } ?: 1f
+        ax0 /= al; ay0 /= al
+        val lobe = s.len * 0.1f
         for (r in r0..r1) for (c in c0..c1) {
             val px = (c + 0.5f) * cellW; val py = (r + 0.5f) * cellH
-            var best = Float.MAX_VALUE; var bu = 0f; var up = false
+            var best = Float.MAX_VALUE; var bu = 0f; var lat = 0f
             for (k in 0 until NS) {
                 val ax = s.px[k]; val ay = s.py[k]
                 val vx = s.px[k + 1] - ax; val vy = s.py[k + 1] - ay
                 val l2 = (vx * vx + vy * vy).takeIf { it > 0f } ?: 1f
-                val raw = ((px - ax) * vx + (py - ay) * vy) / l2
-                val f = raw.coerceIn(0f, 1f)
+                val f = (((px - ax) * vx + (py - ay) * vy) / l2).coerceIn(0f, 1f)
                 val qx = ax + vx * f; val qy = ay + vy * f
                 val d = hypot(px - qx, py - qy)
                 if (d < best) {
                     best = d
                     bu = (k + f) / NS
-                    // «верх» тела: нормаль сегмента, смотрящая вверх по экрану
-                    var nx = -vy; var ny = vx
-                    if (ny > 0f) { nx = -nx; ny = -ny }
-                    up = (px - qx) * nx + (py - qy) * ny > 0f
+                    lat = if (vx * (py - ay) - vy * (px - ax) >= 0f) d else -d
                 }
             }
+            val up = -sign(lat) * s.dorsal > 0f
             val half = bodyHalf(bu) * s.len
             var d = if (half > 0f) best / half else 9f
-            if (bu > 0.28f && bu < 0.45f && up) {
+            if (bu >= 0.28f && bu <= 0.45f && up) {
                 val fu = (bu - 0.28f) / 0.17f
                 if (best < half + (1f - fu) * fu.pow(0.3f) * s.len * 0.08f) d = min(d, 0.85f)
             }
-            if (bu > 0.22f && bu < 0.36f && !up) {
+            if (bu >= 0.22f && bu <= 0.36f && !up) {
                 val fu = (bu - 0.22f) / 0.14f
                 if (best < half + fu * s.len * 0.05f) d = min(d, 0.9f)
             }
-            // раздвоенный хвост: две лопасти назад и в стороны от конца позвоночника
-            run {
-                val ex = s.px[NS]; val ey = s.py[NS]
-                var ax = ex - s.px[NS - 3]; var ay = ey - s.py[NS - 3]
-                val al = hypot(ax, ay).takeIf { it > 0f } ?: 1f
-                ax /= al; ay /= al
-                val rx = px - ex; val ry = py - ey
-                val along = rx * ax + ry * ay                       // назад от хвоста
-                val perp = rx * -ay + ry * ax                        // вбок
-                val lobe = s.len * 0.13f
-                if (along > -cellW && along < lobe) {
-                    val a01 = (along / lobe).coerceIn(0f, 1f)
-                    val target = a01 * lobe * 0.95f
-                    if (abs(abs(perp) - target) < cellH * (0.55f + 0.35f * (1f - a01))) d = min(d, 0.75f)
-                }
-            }
-            if (d < 1f) {
-                val inner = 1f - d
-                val idx = (2 + inner * (RAMP.length - 2)).toInt().coerceIn(1, RAMP.length - 1)
-                grid[r][c] = RAMP[idx]
-                shade[r][c] = max(shade[r][c], 0.4f + inner * 0.6f)
+            if (d < 1f) put(r, c, 1f - d)
+            val rx = px - ex; val ry = py - ey
+            val along = rx * ax0 + ry * ay0
+            val perp = abs(rx * -ay0 + ry * ax0)
+            if (along > -cellW * 0.5f && along < lobe) {
+                val a01 = max(0f, along) / lobe
+                if (abs(perp - a01 * lobe * 0.85f) < cellH * (0.75f - 0.25f * a01)) put(r, c, 0.25f)
             }
         }
-        // глаз
-        var tx = s.px[2] - s.px[4]; var ty = s.py[2] - s.py[4]
-        val l = hypot(tx, ty).takeIf { it > 0f } ?: 1f
-        tx /= l; ty /= l
-        var nx = -ty; var ny = tx
-        if (ny > 0f) { nx = -nx; ny = -ny }
-        val off = bodyHalf(0.07f) * s.len * 0.4f
-        val ec = ((s.px[2] + nx * off) / cellW).toInt(); val er = ((s.py[2] + ny * off) / cellH).toInt()
+        // глаз — на спинной стороне у головы
+        var vx = s.px[3] - s.px[1]; var vy = s.py[3] - s.py[1]
+        val l = hypot(vx, vy).takeIf { it > 0f } ?: 1f
+        vx /= l; vy /= l
+        val sg = -s.dorsal
+        val off = bodyHalf(0.07f) * s.len * 0.35f
+        val ec = ((s.px[2] - vy * off * sg) / cellW).toInt(); val er = ((s.py[2] + vx * off * sg) / cellH).toInt()
         if (ec in 0 until cols && er in 0 until rows) { grid[er][ec] = 'o'; shade[er][ec] = 1f }
+    }
+
+    private fun put(r: Int, c: Int, inner: Float) {
+        val idx = (1 + inner * (RAMP.length - 2)).toInt().coerceIn(1, RAMP.length - 1)
+        if (RAMP.indexOf(grid[r][c]) < idx) grid[r][c] = RAMP[idx]
+        shade[r][c] = max(shade[r][c], 0.4f + inner * 0.6f)
     }
 
     private val hsv = FloatArray(3)
@@ -276,8 +285,8 @@ private class Ocean {
             var any = false
             for (c in 0 until cols) if (line[c] != ' ') { any = true; if (shade[r][c] > mx) mx = shade[r][c] }
             if (!any) continue
-            hsv[0] = 268f + 26f * sin(t * 0.35f + r * 0.12f); hsv[1] = 0.5f; hsv[2] = 1f
-            val alpha = min(0.78f, 0.3f + 0.48f * mx)
+            hsv[0] = 268f + 26f * sin(t * 0.35f + r * 0.12f); hsv[1] = 0.18f; hsv[2] = 0.9f
+            val alpha = min(0.66f, 0.24f + 0.4f * mx)
             paint.color = android.graphics.Color.HSVToColor((alpha * 255).toInt(), hsv)
             canvas.drawText(line, 0, cols, 0f, (r + 1) * cellH, paint)
         }
