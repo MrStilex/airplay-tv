@@ -1,0 +1,34 @@
+name: Build TV APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "21"
+          cache: gradle
+      - name: Build release APK
+        env:
+          STORE: ${{ secrets.STORE }}
+          STORE_PASS: ${{ secrets.STORE_PASS }}
+        run: |
+          echo "$STORE" | base64 -d > app/upload.jks
+          printf 'storeFile=upload.jks\nstorePassword=%s\nkeyAlias=airplaytv\nkeyPassword=%s\n' "$STORE_PASS" "$STORE_PASS" > local.properties
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --stacktrace
+          rm -f app/upload.jks local.properties
+      - uses: actions/upload-artifact@v4
+        with:
+          name: airplay-tv-apk
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 30

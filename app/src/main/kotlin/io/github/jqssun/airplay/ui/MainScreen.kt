@@ -507,7 +507,21 @@ fun MainScreen(
         if (pin != null) fullscreen = false
     }
 
-    if (fullscreen) {
+    // Свой экран ожидания для телевизора (см. TvIdleScreen.kt)
+    val serverStateIdle by viewModel.serverState.collectAsState()
+    val idleName by viewModel.pref(Prefs.SERVER_NAME).collectAsState()
+    val idlePort by viewModel.pref(Prefs.SERVER_PORT).collectAsState()
+    val idlePreviewOn by viewModel.pref(Prefs.IDLE_PREVIEW).collectAsState()
+    val showTvIdle = isTv() && !fullscreen && tab == Tab.OVERVIEW && pin == null &&
+        serverStateIdle == ServerState.RUNNING && connections == 0 &&
+        !mirroringActive && !videoPlaybackActive && !videoSessionPending && !idlePreviewOn
+
+    // На ТВ «Назад» из настроек/логов возвращает на экран ожидания, а не закрывает приложение
+    BackHandler(enabled = isTv() && !fullscreen && tab != Tab.OVERVIEW) { tab = Tab.OVERVIEW }
+
+    if (showTvIdle) {
+        TvIdleScreen(serverName = idleName, port = idlePort, onSettings = { tab = Tab.SETTINGS })
+    } else if (fullscreen) {
         BackHandler { fullscreen = false }
         FullscreenVideo(
             viewModel = viewModel,
