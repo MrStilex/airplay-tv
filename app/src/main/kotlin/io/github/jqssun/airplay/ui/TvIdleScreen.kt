@@ -80,45 +80,45 @@ fun TvIdleScreen(serverName: String, port: Int, onSettings: () -> Unit) {
         Modifier
             .fillMaxSize()
             .background(Brush.radialGradient(listOf(BgGlow, Bg), radius = 1600f))
-            .padding(horizontal = 72.dp, vertical = 56.dp)
+            .padding(horizontal = 43.dp, vertical = 34.dp)
     ) {
         Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
             // Левая часть: заголовок, имя, адрес, кнопка
             Column(Modifier.weight(1.1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Airplay, null, tint = Accent, modifier = Modifier.size(44.dp))
-                    Spacer(Modifier.width(14.dp))
-                    Text("AirPlay", color = Accent, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.width(18.dp))
+                    Icon(Icons.Filled.Airplay, null, tint = Accent, modifier = Modifier.size(26.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("AirPlay", color = Accent, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(11.dp))
                     Text(
                         "● Готов к трансляции",
-                        color = Ok, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                        color = Ok, fontSize = 9.sp, fontWeight = FontWeight.SemiBold,
                         modifier = Modifier
                             .border(1.dp, Ok.copy(alpha = 0.5f), RoundedCornerShape(50))
                             .background(Ok.copy(alpha = 0.10f), RoundedCornerShape(50))
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
-                Spacer(Modifier.height(36.dp))
-                Text("Готово к подключению", color = TextMain, fontSize = 44.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(22.dp))
+                Text("Готово к подключению", color = TextMain, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(7.dp))
                 Text(
                     "Выберите это устройство в «Повторе экрана» или в AirPlay на iPhone, iPad или Mac.",
-                    color = TextDim, fontSize = 19.sp, lineHeight = 26.sp
+                    color = TextDim, fontSize = 11.sp, lineHeight = 16.sp
                 )
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(19.dp))
                 Column(
                     Modifier
                         .fillMaxWidth()
-                        .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
-                        .background(Card, RoundedCornerShape(24.dp))
-                        .padding(horizontal = 28.dp, vertical = 8.dp)
+                        .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                        .background(Card, RoundedCornerShape(14.dp))
+                        .padding(horizontal = 17.dp, vertical = 5.dp)
                 ) {
                     InfoRow("Имя устройства", serverName, Accent, big = true)
                     HorizontalDivider(color = CardBorder)
                     InfoRow("Адрес", if (ip != null) "$ip:$port" else "нет сети", TextMain, big = false)
                 }
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(19.dp))
                 var focused by remember { mutableStateOf(false) }
                 Button(
                     onClick = onSettings,
@@ -126,31 +126,31 @@ fun TvIdleScreen(serverName: String, port: Int, onSettings: () -> Unit) {
                         containerColor = if (focused) Accent else Card,
                         contentColor = if (focused) Bg else TextMain
                     ),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(10.dp),
                     modifier = Modifier
                         .focusRequester(focus)
                         .onFocusChanged { focused = it.isFocused }
-                        .border(2.dp, if (focused) Color.White else CardBorder, RoundedCornerShape(16.dp))
+                        .border(2.dp, if (focused) Color.White else CardBorder, RoundedCornerShape(10.dp))
                 ) {
-                    Text("НАСТРОЙКИ", fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp))
+                    Text("НАСТРОЙКИ", fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 4.dp))
                 }
             }
-            Spacer(Modifier.width(56.dp))
+            Spacer(Modifier.width(34.dp))
             // Правая часть: как подключиться
             Column(
                 Modifier
                     .weight(1f)
-                    .border(1.dp, CardBorder, RoundedCornerShape(28.dp))
-                    .background(Card.copy(alpha = 0.85f), RoundedCornerShape(28.dp))
-                    .padding(36.dp)
+                    .border(1.dp, CardBorder, RoundedCornerShape(17.dp))
+                    .background(Card.copy(alpha = 0.85f), RoundedCornerShape(17.dp))
+                    .padding(22.dp)
             ) {
-                Text("Как подключиться", color = TextMain, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(20.dp))
+                Text("Как подключиться", color = TextMain, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(12.dp))
                 Step(1, "Одна сеть Wi-Fi", "iPhone, iPad или Mac должен быть в той же сети, что и приставка")
-                HorizontalDivider(color = CardBorder, modifier = Modifier.padding(vertical = 14.dp))
+                HorizontalDivider(color = CardBorder, modifier = Modifier.padding(vertical = 8.dp))
                 Step(2, "Пункт управления", "Нажмите «Повтор экрана» или значок AirPlay в приложении")
-                HorizontalDivider(color = CardBorder, modifier = Modifier.padding(vertical = 14.dp))
+                HorizontalDivider(color = CardBorder, modifier = Modifier.padding(vertical = 8.dp))
                 Step(3, "Выберите «$serverName»", "Трансляция начнётся сразу, на весь экран")
             }
         }
@@ -159,10 +159,10 @@ fun TvIdleScreen(serverName: String, port: Int, onSettings: () -> Unit) {
 
 @Composable
 private fun InfoRow(label: String, value: String, valueColor: Color, big: Boolean) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text("$label:", color = TextDim, fontSize = 19.sp)
-        Spacer(Modifier.width(16.dp))
-        Text(value, color = valueColor, fontSize = if (big) 28.sp else 22.sp,
+    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("$label:", color = TextDim, fontSize = 11.sp)
+        Spacer(Modifier.width(10.dp))
+        Text(value, color = valueColor, fontSize = if (big) 17.sp else 13.sp,
             fontWeight = if (big) FontWeight.Bold else FontWeight.Medium)
     }
 }
@@ -171,13 +171,13 @@ private fun InfoRow(label: String, value: String, valueColor: Color, big: Boolea
 private fun Step(n: Int, title: String, desc: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
-            Modifier.size(52.dp).border(1.dp, CardBorder, CircleShape).background(Bg, CircleShape),
+            Modifier.size(31.dp).border(1.dp, CardBorder, CircleShape).background(Bg, CircleShape),
             contentAlignment = Alignment.Center
-        ) { Text("$n", color = Accent, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
-        Spacer(Modifier.width(20.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, color = TextMain, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text(desc, color = TextDim, fontSize = 16.sp, lineHeight = 22.sp)
+        ) { Text("$n", color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
+        Spacer(Modifier.width(12.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, color = TextMain, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(desc, color = TextDim, fontSize = 10.sp, lineHeight = 13.sp)
         }
     }
 }

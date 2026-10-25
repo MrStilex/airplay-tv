@@ -105,8 +105,8 @@ private class Ocean {
         grid = Array(rows) { CharArray(cols) }
         shade = Array(rows) { FloatArray(cols) }
         sharks.clear()
-        sharks += Shark(w * 0.3f, h * 0.35f, 0f, w * 0.36f, w * 0.055f, 0f)
-        sharks += Shark(w * 0.6f, h * 0.72f, PI.toFloat(), w * 0.24f, w * 0.045f, 2f)
+        sharks += Shark(w * 0.3f, h * 0.35f, 0f, w * 0.30f, w * 0.045f, 0f)
+        sharks += Shark(w * 0.6f, h * 0.72f, PI.toFloat(), w * 0.20f, w * 0.038f, 2f)
         fish.clear()
         repeat(24) { i ->
             val school = i / 8
@@ -120,7 +120,7 @@ private class Ocean {
         val boost = 0.7f + energy * 0.8f
         t += dt * boost
         if (w == 0f) return
-        val m = w * 0.12f; val mY = h * 0.16f
+        val m = w * 0.18f; val mY = h * 0.2f
         for (s in sharks) {
             s.retarget -= dt
             if (s.retarget <= 0f || hypot(s.tx - s.x, s.ty - s.y) < w * 0.08f) {
@@ -132,7 +132,8 @@ private class Ocean {
             val look = s.len * 0.5f
             val lx = s.x + cos(s.th) * look; val ly = s.y + sin(s.th) * look
             if (lx < m * 0.6f || lx > w - m * 0.6f || ly < mY * 0.6f || ly > h - mY * 0.6f) want = atan2(h / 2 - s.y, w / 2 - s.x)
-            val maxTurn = 0.9f * dt * boost
+            // радиус поворота не меньше ~0.45 длины акулы — тело изгибается дугой, а не складывается
+            val maxTurn = s.sp / (s.len * 0.45f) * dt * boost
             s.th += angDiff(s.th, want).coerceIn(-maxTurn, maxTurn)
             s.x += cos(s.th) * s.sp * dt * boost
             s.y += sin(s.th) * s.sp * dt * boost
@@ -196,7 +197,7 @@ private class Ocean {
         val r0 = max(0, ((minY - pad) / cellH).toInt()); val r1 = min(rows - 1, ((maxY + pad) / cellH).toInt())
         for (r in r0..r1) for (c in c0..c1) {
             val px = (c + 0.5f) * cellW; val py = (r + 0.5f) * cellH
-            var best = Float.MAX_VALUE; var bu = 0f; var bt = 0f; var up = false
+            var best = Float.MAX_VALUE; var bu = 0f; var up = false
             for (k in 0 until NS) {
                 val ax = s.px[k]; val ay = s.py[k]
                 val vx = s.px[k + 1] - ax; val vy = s.py[k + 1] - ay
@@ -208,7 +209,6 @@ private class Ocean {
                 if (d < best) {
                     best = d
                     bu = (k + f) / NS
-                    bt = if (k == NS - 1 && raw > 1f) (raw - 1f) * kotlin.math.sqrt(l2) / s.len else 0f
                     // «верх» тела: нормаль сегмента, смотрящая вверх по экрану
                     var nx = -vy; var ny = vx
                     if (ny > 0f) { nx = -nx; ny = -ny }
@@ -225,10 +225,21 @@ private class Ocean {
                 val fu = (bu - 0.22f) / 0.14f
                 if (best < half + fu * s.len * 0.05f) d = min(d, 0.9f)
             }
-            if (bu > 0.93f || bt > 0f) {
-                val tu = min(1f, (bu - 0.93f) / 0.07f + bt * 6f)
-                val spread = tu * s.len * 0.11f
-                if (abs(best - spread) < cellH * (0.7f + tu * 0.5f)) d = min(d, 0.8f)
+            // раздвоенный хвост: две лопасти назад и в стороны от конца позвоночника
+            run {
+                val ex = s.px[NS]; val ey = s.py[NS]
+                var ax = ex - s.px[NS - 3]; var ay = ey - s.py[NS - 3]
+                val al = hypot(ax, ay).takeIf { it > 0f } ?: 1f
+                ax /= al; ay /= al
+                val rx = px - ex; val ry = py - ey
+                val along = rx * ax + ry * ay                       // назад от хвоста
+                val perp = rx * -ay + ry * ax                        // вбок
+                val lobe = s.len * 0.13f
+                if (along > -cellW && along < lobe) {
+                    val a01 = (along / lobe).coerceIn(0f, 1f)
+                    val target = a01 * lobe * 0.95f
+                    if (abs(abs(perp) - target) < cellH * (0.55f + 0.35f * (1f - a01))) d = min(d, 0.75f)
+                }
             }
             if (d < 1f) {
                 val inner = 1f - d
