@@ -11,6 +11,9 @@
 
 class AudioOutput;
 
+// TV-сборка: сглаженный уровень звука 0..1 для анимации на экране музыки
+inline std::atomic<float> g_audio_level{0.0f};
+
 // https://github.com/google/oboe/wiki/TechNote_HowToAvoidCrashes#avoid-deleting-objects-that-are-used-by-callbacks
 /*
  * oboe data/error callbacks. oboe can invoke these even after stop()/close():
@@ -34,9 +37,17 @@ public:
         mTimeline->read(out, numFrames);
 
         const float gain = mClientGain.load(std::memory_order_relaxed);
+        const size_t n = (size_t)numFrames * mChannels;
         if (gain < 1.0f) {
-            const size_t n = (size_t)numFrames * mChannels;
             for (size_t i = 0; i < n; i++) out[i] = (int16_t)(out[i] * gain);
+        }
+        // средняя амплитуда (каждый 4-й сэмпл), сглаживание
+        if (n > 0) {
+            int64_t sum = 0;
+            for (size_t i = 0; i < n; i += 4) sum += out[i] < 0 ? -out[i] : out[i];
+            const float lvl = (float)sum / (float)((n + 3) / 4) / 32768.0f;
+            const float prev = g_audio_level.load(std::memory_order_relaxed);
+            g_audio_level.store(prev + (lvl - prev) * 0.2f, std::memory_order_relaxed);
         }
         return oboe::DataCallbackResult::Continue;
     }

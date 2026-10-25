@@ -43,7 +43,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import io.github.jqssun.airplay.bridge.NativeBridge
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -66,7 +72,13 @@ import io.github.jqssun.airplay.ui.gestures.ServerVolumeState
 import io.github.jqssun.airplay.viewmodel.MainViewModel
 import kotlin.math.roundToInt
 
-// Та же палитра, что у экрана ожидания
+// Мягкая фиолетовая палитра экрана музыки
+private val SBg = Color(0xFF0B0714)
+private val SText = Color(0xF2FFFFFF)
+private val SDim = Color(0x99D6BEFF)
+private val SSoft = Color(0xCCEBDCFF)
+
+// Палитра экрана «Подключение…»
 private val PBg = Color(0xFF0E131C)
 private val PCard = Color(0xFF151D2B)
 private val PBorder = Color(0xFF263247)
@@ -78,14 +90,21 @@ private val PDim = Color(0xFF9AA6B8)
 @Composable
 private fun TvDark(content: @Composable () -> Unit) = MaterialTheme(
     colorScheme = darkColorScheme(
-        primary = PAccent, onPrimary = PBg, secondary = PAccent,
-        surface = PBg, onSurface = PText, onSurfaceVariant = PDim,
-        surfaceVariant = PCard, background = PBg, onBackground = PText
+        primary = SSoft, onPrimary = SBg, secondary = SSoft,
+        surface = SBg, onSurface = SText, onSurfaceVariant = SDim,
+        surfaceVariant = Color(0x1AFFFFFF), background = SBg, onBackground = SText
     ),
     content = content
 )
 
-/** Музыка по AirPlay на весь экран телевизора: обложка, название, прогресс, кнопки и громкость. */
+/** Мягкая подсветка выбранной пультом кнопки: полупрозрачный круг вместо рамки. */
+private fun Modifier.softFocus(): Modifier = composed {
+    var focused by remember { mutableStateOf(false) }
+    this.onFocusChanged { focused = it.isFocused || it.hasFocus }
+        .background(Color.White.copy(alpha = if (focused) 0.22f else 0f), CircleShape)
+}
+
+/** Музыка по AirPlay на весь экран телевизора: ASCII-акулы фоном, мягкая обложка и управление. */
 @Composable
 @AndroidxOptIn(UnstableApi::class)
 fun TvNowPlayingScreen(viewModel: MainViewModel, serverName: String) = TvDark {
@@ -95,114 +114,66 @@ fun TvNowPlayingScreen(viewModel: MainViewModel, serverName: String) = TvDark {
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(player) { runCatching { playFocus.requestFocus() } }
 
-    Box(Modifier.fillMaxSize().background(PBg)) {
-        // Фон: та же обложка, растянутая и приглушённая (размытие на Android 9 недоступно)
-        if (cover != null) {
-            Image(cover, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().alpha(0.35f))
-        }
+    Box(Modifier.fillMaxSize().background(SBg)) {
+        AsciiOcean(level = { (NativeBridge.nativeAudioLevel() * 4f).coerceAtMost(1f) })
+        // мягкое затемнение под текстом справа
         Box(
             Modifier.fillMaxSize().background(
-                Brush.horizontalGradient(listOf(PBg.copy(alpha = 0.55f), PBg.copy(alpha = 0.92f)))
+                Brush.horizontalGradient(0f to Color.Transparent, 0.5f to Color.Transparent, 0.72f to SBg.copy(alpha = 0.82f), 1f to SBg.copy(alpha = 0.9f))
             )
         )
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, PBg.copy(alpha = 0.8f)))))
-
-        Row(
-            Modifier.fillMaxSize().padding(horizontal = 80.dp, vertical = 64.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            Modifier.fillMaxHeight().fillMaxWidth(0.4f).align(Alignment.CenterEnd).padding(end = 72.dp),
+            verticalArrangement = Arrangement.Center
         ) {
-            // Обложка
             Box(
                 Modifier
-                    .fillMaxHeight(0.82f)
+                    .fillMaxWidth(0.62f)
                     .aspectRatio(1f)
+                    .shadow(40.dp, RoundedCornerShape(28.dp), ambientColor = Color(0xFF7A4FD0), spotColor = Color(0xFF000000))
                     .clip(RoundedCornerShape(28.dp))
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(28.dp))
-                    .background(PCard),
+                    .background(Color(0xFF241638)),
                 contentAlignment = Alignment.Center
             ) {
-                if (cover != null) {
-                    Image(cover, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                } else {
-                    Icon(Icons.Filled.MusicNote, null, tint = PDim, modifier = Modifier.size(120.dp))
-                }
+                if (cover != null) Image(cover, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                else Icon(Icons.Filled.MusicNote, null, tint = SDim, modifier = Modifier.size(96.dp))
             }
-            Spacer(Modifier.width(64.dp))
-            // Текст и управление
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Airplay, null, tint = PAccent, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Сейчас играет · $serverName", color = PAccent, fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+            Spacer(Modifier.height(28.dp))
+            Text("Сейчас играет · $serverName", color = SDim, fontSize = 15.sp, letterSpacing = 0.5.sp)
+            Spacer(Modifier.height(10.dp))
+            Text(track.title.ifEmpty { "Без названия" }, color = SText, fontSize = 36.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 42.sp)
+            if (track.artist.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Text(track.artist, color = SText.copy(alpha = 0.72f), fontSize = 21.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (track.album.isNotEmpty()) {
+                Spacer(Modifier.height(2.dp))
+                Text(track.album, color = SDim.copy(alpha = 0.7f), fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (player != null) {
+                Spacer(Modifier.height(26.dp))
+                Box(Modifier.fillMaxWidth()) { ProgressSlider(player) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    PositionText(player)
+                    DurationText(player)
                 }
-                Spacer(Modifier.height(20.dp))
-                Text(track.title.ifEmpty { "Без названия" }, color = PText, fontSize = 44.sp,
-                    fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 50.sp)
-                if (track.artist.isNotEmpty()) {
-                    Spacer(Modifier.height(10.dp))
-                    Text(track.artist, color = PText.copy(alpha = 0.85f), fontSize = 26.sp,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                if (track.album.isNotEmpty()) {
-                    Spacer(Modifier.height(6.dp))
-                    Text(track.album, color = PDim, fontSize = 19.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Spacer(Modifier.height(36.dp))
-                if (player != null) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        PositionText(player, Modifier.padding(end = 12.dp))
-                        Box(Modifier.weight(1f)) { ProgressSlider(player) }
-                        DurationText(player, Modifier.padding(start = 12.dp))
-                    }
-                    Spacer(Modifier.height(20.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        PreviousButton(player, modifier = Modifier.size(64.dp).dpadFocus(CircleShape))
-                        PlayPauseButton(
-                            player,
-                            modifier = Modifier
-                                .size(84.dp)
-                                .background(PAccent.copy(alpha = 0.18f), CircleShape)
-                                .focusRequester(playFocus)
-                                .dpadFocus(CircleShape),
-                            iconSize = 52.dp
-                        )
-                        NextButton(player, modifier = Modifier.size(64.dp).dpadFocus(CircleShape))
-                    }
-                    Spacer(Modifier.height(28.dp))
-                    TvVolumeRow()
+                Spacer(Modifier.height(14.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                    PreviousButton(player, modifier = Modifier.size(60.dp).softFocus())
+                    PlayPauseButton(
+                        player,
+                        modifier = Modifier
+                            .size(76.dp)
+                            .background(Color.White.copy(alpha = 0.12f), CircleShape)
+                            .focusRequester(playFocus)
+                            .softFocus(),
+                        iconSize = 44.dp
+                    )
+                    NextButton(player, modifier = Modifier.size(60.dp).softFocus())
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun TvVolumeRow() {
-    val context = LocalContext.current
-    val volume = remember { ServerVolumeState(context) }
-    DisposableEffect(volume) { volume.handleLifecycle(this) }
-    Row(
-        Modifier
-            .fillMaxWidth(0.75f)
-            .border(1.dp, PBorder, RoundedCornerShape(18.dp))
-            .background(PCard.copy(alpha = 0.7f), RoundedCornerShape(18.dp))
-            .padding(horizontal = 20.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, tint = PDim)
-        Spacer(Modifier.width(12.dp))
-        Slider(
-            value = volume.percentage / 100f,
-            onValueChange = { volume.update((it * 100).roundToInt()) },
-            colors = SliderDefaults.colors(thumbColor = PAccent, activeTrackColor = PAccent, inactiveTrackColor = PBorder),
-            modifier = Modifier
-                .weight(1f)
-                .dpadFocus()
-                .dpadAdjust(onLeft = { volume.adjust(false) }, onRight = { volume.adjust(true) })
-        )
-        Spacer(Modifier.width(12.dp))
-        Text("${volume.percentage}%", color = PText, fontSize = 16.sp, modifier = Modifier.width(48.dp))
     }
 }
 

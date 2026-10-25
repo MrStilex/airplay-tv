@@ -18,6 +18,7 @@ extern "C" {
 }
 
 #include "audio_engine.h"
+#include "audio_output.h"
 #include "log_sink.h"
 
 #define TAG "AirPlayNative"
@@ -417,4 +418,10 @@ Java_io_github_jqssun_airplay_bridge_NativeBridge_nativeServerAudioDebug(
     jlong cap = env->GetDirectBufferCapacity(buf);
     if (!addr || cap <= 0) return JNI_FALSE;
     return audio_engine_get_debug(ctx->cb_ctx.audio_engine, addr, (size_t)cap) ? JNI_TRUE : JNI_FALSE;
+}
+
+
+extern "C" JNIEXPORT jfloat JNICALL
+Java_io_github_jqssun_airplay_bridge_NativeBridge_nativeAudioLevel(JNIEnv *, jobject) {
+    return g_audio_level.load(std::memory_order_relaxed);
 }
