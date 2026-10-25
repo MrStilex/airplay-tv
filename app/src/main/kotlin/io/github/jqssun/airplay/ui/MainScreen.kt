@@ -519,8 +519,17 @@ fun MainScreen(
     // На ТВ «Назад» из настроек/логов возвращает на экран ожидания, а не закрывает приложение
     BackHandler(enabled = isTv() && !fullscreen && tab != Tab.OVERVIEW) { tab = Tab.OVERVIEW }
 
+    val tvBase = isTv() && !fullscreen && tab == Tab.OVERVIEW && pin == null &&
+        serverStateIdle == ServerState.RUNNING && connections > 0 && !videoPlaybackActive && !videoSessionPending
+    val showTvNowPlaying = tvBase && audioOnly
+    val showTvConnecting = tvBase && !audioOnly && !mirroringActive
+
     if (showTvIdle) {
         TvIdleScreen(serverName = idleName, port = idlePort, onSettings = { tab = Tab.SETTINGS })
+    } else if (showTvNowPlaying) {
+        TvNowPlayingScreen(viewModel, serverName = idleName)
+    } else if (showTvConnecting) {
+        TvConnectingScreen(serverName = idleName)
     } else if (fullscreen) {
         BackHandler { fullscreen = false }
         FullscreenVideo(

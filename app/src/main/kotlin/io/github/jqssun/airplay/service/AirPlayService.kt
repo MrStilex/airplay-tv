@@ -1031,7 +1031,11 @@ class AirPlayService : LifecycleService(), RaopCallbackHandler, LogListener {
             for (iface in interfaces) {
                 if (iface.name.startsWith("wlan") || iface.name.startsWith("eth")) {
                     val mac = iface.hardwareAddress
-                    if (isUsableMac(mac)) return mac!!
+                    // TV-сборка: свой идентификатор, чтобы не совпадать с оригинальным приёмником на той же приставке
+                    if (isUsableMac(mac)) return mac!!.copyOf().also {
+                        it[0] = (it[0].toInt() or 0x02).toByte()
+                        it[5] = (it[5].toInt() xor 0x5A).toByte()
+                    }
                 }
             }
         } catch (e: Exception) {
