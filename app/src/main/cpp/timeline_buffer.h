@@ -144,7 +144,7 @@ private:
         return (size_t)sampleRate * ms / 1000 * channels;
     }
 
-    static constexpr int MIN_CUSHION_MS = 0;             // algorithm already enforces effective floor
+    static constexpr int MIN_CUSHION_MS = 150;           // TV: запас против Wi-Fi-пауз
     static constexpr int MAX_CUSHION_MS = 1000;
     static constexpr int BUCKET_MS = 5;                  // histogram granularity
     static constexpr int NBUCKETS = MAX_CUSHION_MS / BUCKET_MS;

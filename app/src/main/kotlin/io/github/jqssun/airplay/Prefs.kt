@@ -89,7 +89,7 @@ object Prefs {
     val AUDIO_CUSHION_MS = int("audio_cushion_ms", 40, 1..1000)
     // slider step 0..4 mapping to arrival-delay percentile the cushion targets;
     // lower = less latency, higher = more stable
-    val AUDIO_ADAPTIVE_STEP = int("audio_adaptive_step", 3, ADAPTIVE_PERCENTILES.indices)
+    val AUDIO_ADAPTIVE_STEP = int("audio_adaptive_step", 4, ADAPTIVE_PERCENTILES.indices)
     val OBOE_BUFFER_FRAMES = int("oboe_buffer_frames", 0, 0..8192)
     val ALAC_ENABLED = bool("alac_enabled", false, restart = true)
     val FORCE_SW_ALAC = bool("force_sw_alac", true)

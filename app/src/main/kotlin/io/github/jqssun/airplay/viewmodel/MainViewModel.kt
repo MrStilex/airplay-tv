@@ -427,8 +427,19 @@ class MainViewModel @Inject constructor(app: Application) : AndroidViewModel(app
             if (pref(Prefs.DEBUG_ENABLED).value) {
                 _debugInfo.value = it.collectDebugInfo()
             }
+            // TV-сборка: раз в 5 с пишем состояние звукового буфера в logcat, чтобы ловить обрывы
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (now - lastAudioLogMs >= 5_000L) {
+                lastAudioLogMs = now
+                it.collectDebugInfo().audio?.let { a ->
+                    if (a.backlogMs > 0 || a.underruns > 0)
+                        android.util.Log.i("AirPlayTV", "audio backlog=${a.backlogMs}ms cushion=${a.tunedCushionMs}ms " +
+                            "trims=${a.trims} drops=${a.drops} silences=${a.silences} underruns=${a.underruns}")
+                }
+            }
         }
     }
+    private var lastAudioLogMs = 0L
 
     private companion object {
         // post-commit: show the target until within epsilon, give up after the timeout

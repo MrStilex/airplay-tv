@@ -133,7 +133,7 @@ private class Ocean {
             val lx = s.x + cos(s.th) * look; val ly = s.y + sin(s.th) * look
             if (lx < m * 0.6f || lx > w - m * 0.6f || ly < mY * 0.6f || ly > h - mY * 0.6f) want = atan2(h / 2 - s.y, w / 2 - s.x)
             // радиус поворота не меньше ~0.45 длины акулы — тело изгибается дугой, а не складывается
-            val maxTurn = s.sp / (s.len * 0.45f) * dt * boost
+            val maxTurn = s.sp / (s.len * 0.8f) * dt * boost
             s.th += angDiff(s.th, want).coerceIn(-maxTurn, maxTurn)
             s.x += cos(s.th) * s.sp * dt * boost
             s.y += sin(s.th) * s.sp * dt * boost
@@ -243,7 +243,7 @@ private class Ocean {
             }
             if (d < 1f) {
                 val inner = 1f - d
-                val idx = (1 + inner * (RAMP.length - 2)).toInt().coerceIn(1, RAMP.length - 1)
+                val idx = (2 + inner * (RAMP.length - 2)).toInt().coerceIn(1, RAMP.length - 1)
                 grid[r][c] = RAMP[idx]
                 shade[r][c] = max(shade[r][c], 0.4f + inner * 0.6f)
             }
@@ -276,8 +276,8 @@ private class Ocean {
             var any = false
             for (c in 0 until cols) if (line[c] != ' ') { any = true; if (shade[r][c] > mx) mx = shade[r][c] }
             if (!any) continue
-            hsv[0] = 268f + 26f * sin(t * 0.35f + r * 0.12f); hsv[1] = 0.32f; hsv[2] = 0.98f
-            val alpha = min(0.62f, 0.22f + 0.38f * mx)
+            hsv[0] = 268f + 26f * sin(t * 0.35f + r * 0.12f); hsv[1] = 0.5f; hsv[2] = 1f
+            val alpha = min(0.78f, 0.3f + 0.48f * mx)
             paint.color = android.graphics.Color.HSVToColor((alpha * 255).toInt(), hsv)
             canvas.drawText(line, 0, cols, 0f, (r + 1) * cellH, paint)
         }
